@@ -7,17 +7,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
+
+type GitInfo struct {
+	Name string
+	Url  string
+}
+
+type Config struct {
+	PullGap int
+}
 
 func ExecutableDir() string {
 	exePath, _ := os.Executable()
 	exePath, _ = filepath.Abs(exePath)
 	return filepath.Dir(exePath)
-}
-
-type GitInfo struct {
-	Name string
-	Url  string
 }
 
 func pathExist(path string) bool {
@@ -77,12 +82,7 @@ func doPull(exePath string, storePath string, gitInfo *GitInfo) {
 	log.Infof("git: %s pull", gitInfo.Url)
 }
 
-func main() {
-	log.SetLevel(log.DebugLevel)
-	formatter := &log.TextFormatter{FullTimestamp: true, DisableColors: true, TimestampFormat: "2006-01-02 15:04:05.000"}
-	log.SetFormatter(formatter)
-	log.SetReportCaller(true)
-
+func pull() {
 	exePath := ExecutableDir()
 	storePath := filepath.Join(exePath, "data")
 	os.Mkdir(storePath, 0666)
@@ -107,5 +107,33 @@ func main() {
 			doClone(exePath, storePath, &gitInfo)
 		}
 	}
+}
 
+func main() {
+	log.SetLevel(log.DebugLevel)
+	formatter := &log.TextFormatter{FullTimestamp: true, DisableColors: true, TimestampFormat: "2006-01-02 15:04:05.000"}
+	log.SetFormatter(formatter)
+	log.SetReportCaller(true)
+
+	exePath := ExecutableDir()
+
+	var config Config
+	configPath := filepath.Join(exePath, "config.json")
+	bytes, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		json.Unmarshal(bytes, &config)
+	}
+
+	if config.PullGap <= 0 {
+		config.PullGap = 180
+	}
+
+	pull()
+	ticker := time.Tick(time.Minute * time.Duration(config.PullGap))
+	for {
+		select {
+		case <-ticker:
+			pull()
+		}
+	}
 }
