@@ -6,14 +6,13 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 )
 
 func ExecutableDir() string {
 	exePath, _ := os.Executable()
 	exePath, _ = filepath.Abs(exePath)
-	return path.Dir(exePath)
+	return filepath.Dir(exePath)
 }
 
 type GitInfo struct {
@@ -34,12 +33,12 @@ func pathExist(path string) bool {
 }
 
 func checkGitCloned(storePath string, gitInfo *GitInfo) bool {
-	repoPath := filepath.Join(storePath, gitInfo.Name)
+	repoPath := filepath.Join(storePath, gitInfo.Name+".git")
 	if !pathExist(repoPath) {
 		return false
 	}
 
-	gitPath := filepath.Join(repoPath, ".git")
+	gitPath := filepath.Join(repoPath, "refs")
 	if !pathExist(gitPath) {
 		return false
 	}
@@ -47,33 +46,35 @@ func checkGitCloned(storePath string, gitInfo *GitInfo) bool {
 }
 
 func doClone(exePath string, storePath string, gitInfo *GitInfo) {
-	log.Info("start clone git: %s", gitInfo.Url)
-	cmdPath := filepath.Join(exePath, "clone.bat")
+	log.Infof("start clone git: %s", gitInfo.Url)
+	cmdPath := filepath.Join(exePath, "clone.sh")
 	repoPath := filepath.Join(storePath, gitInfo.Name)
 	os.RemoveAll(repoPath)
 	cmd := exec.Command(cmdPath, storePath, gitInfo.Name, gitInfo.Url)
 	log.Debugf("run cmd: %s", cmd.String())
-	err := cmd.Run()
+	bytes, err := cmd.Output()
 	if err != nil {
 		log.Errorf("command error %s", err.Error())
 		return
 	}
-	log.Info("git: %s cloned", gitInfo.Url)
+	log.Debugf("output is: %s", string(bytes))
+	log.Infof("git: %s cloned", gitInfo.Url)
 }
 
 func doPull(exePath string, storePath string, gitInfo *GitInfo) {
-	log.Info("start pull git: %s", gitInfo.Url)
-	cmdPath := filepath.Join(exePath, "pull.bat")
+	log.Infof("start pull git: %s", gitInfo.Url)
+	cmdPath := filepath.Join(exePath, "pull.sh")
 	repoPath := filepath.Join(storePath, gitInfo.Name)
 	os.RemoveAll(repoPath)
 	cmd := exec.Command(cmdPath, storePath, gitInfo.Name, gitInfo.Url)
 	log.Debugf("run cmd: %s", cmd.String())
-	err := cmd.Run()
+	bytes, err := cmd.Output()
 	if err != nil {
 		log.Errorf("command error %s", err.Error())
 		return
 	}
-	log.Info("git: %s pull", gitInfo.Url)
+	log.Debugf("output is: %s", string(bytes))
+	log.Infof("git: %s pull", gitInfo.Url)
 }
 
 func main() {
